@@ -2,49 +2,32 @@
 
 ;; a Library for scraping doms for better webjump completion
 
+(require 'line-scraper)
 (require 'webjump)
-(require 'dash)
-(require 's)
 
-(let* ((pluck-quoted "\\([^\"]+\\)"))
-  (setq wjs/id-capture (concat "^.*id=\"" pluck-quoted "\".*$"))
-  (setq wjs/github-href-capture (concat "^.*href=#\"" pluck-quoted "\".*$"))
-  (setq wjs/drop-version-numbers "\\([^0-9].*\\)"))
+(defconst wjs/builtins
+  '(("underscore" .
+     (wjs/query!! "underscorejs.org" :capture wjs/id-capture :drop ls/version-number))
+    ("baconjs" .
+     (wjs/query!! "https://github.com/baconjs/bacon.js/tree/master"
+                  :capture wjs/github-href-capture))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; pure transforms
-;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defconst wjs/id-capture "^.*id=\"\\([^\"]+\\)\".*$")
+(defconst  wjs/github-href-capture "^.*href=\"#\\([^\"]+\\)\".*$")
 
-(defun wjs/page-to-completions (page &rest patterns)
-  "take a webpage as a big string, iterate over each line,
-transforming by the capture in the pattern. Return a list of completions."
-  (let ((tokens! (s-lines page)))
-    (dolist (pattern patterns)
-      (setq tokens!
-            (-map (-partial 'wjs/regexp-transform pattern) tokens!)))
-    tokens!))
+(defun wjs/query! (base-url &rest transformers)
+  (let* ((page (ls/read-url! base-url))
+         (completions (apply 'ls/scrape-body page transformers))
+        (id (completing-read "id: " completions)))
+    (concat base-url "/#" id)))
 
-(defun wjs/regexp-transform (pattern value)
-  "if you provide a pattern, transform a line by the pattern. Otherwise, just return identity."
-  (if pattern
-      (nth 1 (s-match pattern value))
-    value))
+(defun wjs/query!! (base-url &rest actions)
+  (apply 'wjs/query! base-url (apply 'ls/parse-actions actions)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; IO
-;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; builtin scrapes
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun wjs/curl! (url)
-  (let ((curl-command (s-format "curl $0 2>/dev/null" 'elt (list url))))
-  (shell-command-to-string curl-command)))
-
-(defun wjs/query! (base-url &rest patterns)
-  (let* ((page (wjs/curl! base-url))
-         (args (append (list page) patterns))
-         (completions (apply 'wjs/page-to-completions args)))
-    (concat base-url "/#" (completing-read "id: " completions))))
-
-(defun wjs/dom-id-query! (base-url) (wjs/query! base-url wjs/id-capture))
-(defun wjs/github-doc-query! (base-url) (wjs/query! base-url wjs/github-href-capture))
+(defun wjs/builtins (name) (assoc name wjs/builtins))
 
 (provide 'webjump-scrapers)

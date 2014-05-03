@@ -18,10 +18,7 @@ Not much is available at the moment, but webjump scrapers can be tested. For exa
 ```
 (add-to-list 'load-path "<path-to-repo>/emacs-general-extensions/")
 (require 'webjump-scrapers)
-(setq webjump-sites
-      (append
-       '(("underscore" . (wjs/dom-id-query! "underscorejs.org")))
-       webjump-sites))
+(add-to-list 'webjump-sites (wjs/builtins "underscore"))
 ```
 
 and run: `M-x webjump`, type `underscore` and press enter, press `TAB` to view comptions.
