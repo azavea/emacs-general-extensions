@@ -14,7 +14,7 @@
 
 (defconst ls/version-number "\\([0-9]+\.\\)+[0-9]+")
 
-(defconst action-aliases
+(defconst ls/action-aliases
   '(:keep ls/regexp-keep
     :drop ls/regexp-drop
     :capture ls/regexp-capture))
@@ -50,7 +50,7 @@
 (defun ls/parse-actions (&rest actions)
   (let ((pairs (-partition 2 actions))
         (fn (lambda (pair)
-              (funcall (plist-get action-aliases (car pair)) (nth 1 pair)))))
+              (funcall (plist-get ls/action-aliases (car pair)) (nth 1 pair)))))
     (-map fn pairs)))
 
 (defun ls/scrape-body (page &rest transformers)
