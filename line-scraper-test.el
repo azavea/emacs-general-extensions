@@ -1,32 +1,7 @@
 (require 'line-scraper)
-;; todo: resolve dependencies for bash,
-;;       probably by using a cask file
+(require 'test-utils)
+(require 'ert)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; test utils
-;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defun equal* (&rest vals)
-  (-all? 'identity (-map
-                    (lambda (val)
-                      (equal (car vals) val)) (cdr vals))))
-
-(defun eval-equal (vals fn1 fn2)
-  (--map (equal (funcall fn1 it) (funcall fn2 it)) vals))
-
-(ert-deftest equal* ()
-    (should (not (equal* 1 2 3)))
-    (should (equal* 1 1 1)))
-
-(ert-deftest eval-equal ()
-  "Test that the eval equal helper works"
-  (should (eval-equal '("foo" "foso")
-                      (ls/regexp-drop "^foo")
-                      (ls/regexp-drop "^foo"))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; test utils
-;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (ert-deftest ls/regexp-drop ()
   (should (equal (funcall (ls/regexp-drop "^foo") nil) nil))
