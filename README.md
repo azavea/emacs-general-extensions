@@ -1,5 +1,6 @@
 emacs-general-extensions
 ========================
+[![Build Status](https://travis-ci.org/azavea/emacs-general-extensions.svg?branch=master)](https://travis-ci.org/azavea/emacs-general-extensions)
 
 An umbrella repository for various emacs lisp extensions to live in until breaking out on their own.
 
