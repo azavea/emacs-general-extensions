@@ -2,23 +2,27 @@
 
 (require 'dash)
 (require 'ert)
+(require 's)
 
 (defun equal* (&rest vals)
   (-all? 'identity (-map
                     (lambda (val)
                       (equal (car vals) val)) (cdr vals))))
 
-(defun eval-equal (vals fn1 fn2)
-  (--map (equal (funcall fn1 it) (funcall fn2 it)) vals))
-
-(ert-deftest equal* ()
+(ert-deftest test/equal* ()
     (should (not (equal* 1 2 3)))
     (should (equal* 1 1 1)))
 
-(ert-deftest eval-equal ()
+(defun eval-equal (vals fn1 fn2)
+  (-all? 'identity (--map (equal (funcall fn1 it) (funcall fn2 it)) vals)))
+
+(ert-deftest test/eval-equal ()
   "Test that the eval equal helper works"
   (should (eval-equal '("foo" "foso")
-                      (ls/regexp-drop "^foo")
-                      (ls/regexp-drop "^foo"))))
+                      (-partial 's-replace "-" "")
+                      (-partial 's-replace "-" "!!")))
+  (should (not (eval-equal '("foo-bar" "foso-bar")
+                           (-partial 's-replace "-" "")
+                           (-partial 's-replace "-" "!!")))))
 
 (provide 'test-utils)

@@ -5,61 +5,61 @@
 (require 'line-scraper)
 (require 'webjump)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; builtin scrapes
-;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defconst wjs/id-attribute "^.*id=\"\\([^\"]+\\)\".*$")
-
 (defconst wjs/builtins
-
   '(("underscore" .
-     (wjs/query!! "underscorejs.org/#"
-                  :capture wjs/id-attribute
-                  :drop ls/version-number))
+     (wjs/query! '(:url-builder "underscorejs.org/#"
+                   :recipe (:capture "^.*id=\"\\([^\"]+\\)\".*$"
+                            :drop "\\([0-9]+\.\\)+[0-9]+"))))
     ("backbone" .
-     (wjs/query!! "backbonejs.org/#"
-                  :capture wjs/id-attribute
-                  :drop ls/version-number))
-
-    ("jquery" .
-     (wjs/query!! "api.jquery.com/"
-                  :capture "^.*href=\"http://api.jquery.com/\\([^/]+\\)/\""))
-
+     (wjs/query! '(:url-builder "backbonejs.org/#"
+                   :recipe (:capture "^.*id=\"\\([^\"]+\\)\".*$"
+                            :drop "\\([0-9]+\.\\)+[0-9]+"))))
     ("baconjs" .
-     (wjs/query!! "https://github.com/baconjs/bacon.js/tree/master/#"
-                  :capture "^.*href=\"#\\([^\"]+\\)\".*$"))))
+     (wjs/query! '(:url-builder
+                   "https://github.com/baconjs/bacon.js/tree/master/#"
+                   :recipe
+                   (:capture:build-url-on
+                    "^.*href=\"#\\([^\"]+\\)\".*$"
+                    :fn:complete-on
+                    (lambda (arg) (when arg (s-replace "bacon-" "" arg)))))))
+    ("jquery" .
+     (wjs/query! '(:url-builder "api.jquery.com/"
+                   :recipe
+                   (:capture
+                    "^.*href=\"http://api.jquery.com/\\([^/]+\\)/\""))))))
 
-(defun wjs/query! (base-url &rest transformers)
-  "take a url and transformers, query the user for which transformed
-dom line to complete on, and return a url that will jump to that
-entity.
+(defun wjs/functify-url-builder (url-builder)
+"a URL-BUILDER can be a string, or a function.
 
-if base-url is a function, it will be called with no args to produce
-the scrape url, and then again with the completion arg to produce the
-jump-url.
+If URL-BUILDER is a function, it is called with no args to produce a
+ base url, and with one arg to produce a complete url."
+(if (functionp url-builder)
+    url-builder
+  (lambda (&optional arg) (concat url-builder arg))))
 
-if base-url is a string, it will be used to scraped and then the
-completion value will be appended to the end to produce the jump url.
-"
-  (let* ((url (if (functionp base-url) (funcall base-url) base-url))
-         ;; make the url builder function if base-url is not a
-         ;; function.
-         (url-builder
-          (if (functionp base-url)
-              base-url
-            (lambda (item) (concat base-url item))))
-         ;; get the page as a string
-         (page (ls/read-url! url))
-         ;; get the transformed dom lines to use for completion
-         (completions (apply 'ls/scrape-body page transformers))
-         (completion (completing-read "id: " completions)))
-    (funcall url-builder completion)))
+(defun wjs/query! (query)
+" Takes a plist arglist, QUERY.
 
-(defun wjs/query!! (base-url &rest actions)
-  "Just like query!, but allows the shorthand dsl (:keep, :drop) that
-builds transformers instead of an explicit list of transformers."
-  (let ((transformers (apply 'ls/parse-actions actions)))
-    (apply 'wjs/query! base-url transformers)))
+QUERY can contain the following keys:
+- :url-builder see `wjs/functify-url-builder' for details on url-builders.
+- :prompt      what to prompt for with completions, defaults to \"id: \"
+- :recipe      see `ls/scrape' for details on recipes."
+(let* ((url-builder (wjs/functify-url-builder (plist-get query :url-builder)))
+       (url (funcall url-builder))
+       (page (ls/read-url! url))
+       (scrape-data (ls/scrape page (plist-get query :recipe)))
+       (final-values (plist-get scrape-data :final-values))
+       (intermediate-values (plist-get scrape-data :intermediate-values))
+       (completion-list (or (plist-get intermediate-values :complete-on) final-values))
+       (url-arg-list (or (plist-get intermediate-values :build-url-on) final-values))
+       (prompt (or (plist-get query :prompt) "id: "))
+       (completion (ido-completing-read prompt (-filter 'identity completion-list)))
+       (index (-elem-index completion completion-list))
+       (url-arg (nth index url-arg-list)))
+  (funcall url-builder url-arg)))
+
+(unless (boundp 'wjs/previous-webjump-sites)
+  (setq wjs/previous-webjump-sites (copy-sequence webjump-sites)))
+(setq webjump-sites (append wjs/previous-webjump-sites wjs/builtins))
 
 (provide 'webjump-scrapers)
