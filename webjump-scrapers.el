@@ -5,28 +5,39 @@
 (require 'line-scraper)
 (require 'webjump)
 
-(defconst wjs/builtins
-  '(("underscore" .
-     (wjs/query! '(:url-builder "underscorejs.org/#"
-                   :recipe (:capture "^.*id=\"\\([^\"]+\\)\".*$"
-                            :drop "\\([0-9]+\.\\)+[0-9]+"))))
-    ("backbone" .
-     (wjs/query! '(:url-builder "backbonejs.org/#"
-                   :recipe (:capture "^.*id=\"\\([^\"]+\\)\".*$"
-                            :drop "\\([0-9]+\.\\)+[0-9]+"))))
-    ("baconjs" .
-     (wjs/query! '(:url-builder
-                   "https://github.com/baconjs/bacon.js/tree/master/#"
-                   :recipe
-                   (:capture:build-url-on
-                    "^.*href=\"#\\([^\"]+\\)\".*$"
-                    :fn:complete-on
-                    (lambda (arg) (when arg (s-replace "bacon-" "" arg)))))))
-    ("jquery" .
-     (wjs/query! '(:url-builder "api.jquery.com/"
-                   :recipe
-                   (:capture
-                    "^.*href=\"http://api.jquery.com/\\([^/]+\\)/\""))))))
+(defconst wjs/id-attribute "^.*id=\"\\([^\"]+\\)\".*$")
+(defconst wjs/version-number "\\([0-9]+\.\\)+[0-9]+")
+(defconst wjs/jashkenas-web-recipe
+  (list :capture wjs/id-attribute
+        :drop wjs/version-number))
+
+(defconst wjs/underscore-web-recipe
+  (list :url-builder "underscorejs.org/#"
+        :recipe wjs/jashkenas-web-recipe))
+
+(defconst wjs/backbone-web-recipe
+  (list :url-builder "backbonejs.org/#"
+        :recipe wjs/jashkenas-web-recipe))
+
+(defconst wjs/baconjs-web-recipe
+  '(:url-builder
+    "https://github.com/baconjs/bacon.js/tree/master/#"
+    :recipe
+    (:capture:build-url-on
+     "^.*href=\"#\\([^\"]+\\)\".*$"
+     :fn:complete-on
+     (lambda (arg) (when arg (s-replace "bacon-" "" arg))))))
+
+(defconst wjs/jquery-web-recipe
+  '(:url-builder "api.jquery.com/"
+    :recipe
+    (:capture
+     "^.*href=\"http://api.jquery.com/\\([^/]+\\)/\"")))
+
+(add-to-list 'webjump-sites '("underscore" . (wjs/query! wjs/underscore-web-recipe)))
+(add-to-list 'webjump-sites '("backbone" . (wjs/query! wjs/backbone-web-recipe)))
+(add-to-list 'webjump-sites '("baconjs" . (wjs/query! wjs/baconjs-web-recipe)))
+(add-to-list 'webjump-sites '("jquery" . (wjs/query! wjs/jquery-web-recipe)))
 
 (defun wjs/functify-url-builder (url-builder)
 "a URL-BUILDER can be a string, or a function.
@@ -57,9 +68,5 @@ QUERY can contain the following keys:
        (index (-elem-index completion completion-list))
        (url-arg (nth index url-arg-list)))
   (funcall url-builder url-arg)))
-
-(unless (boundp 'wjs/previous-webjump-sites)
-  (setq wjs/previous-webjump-sites (copy-sequence webjump-sites)))
-(setq webjump-sites (append wjs/previous-webjump-sites wjs/builtins))
 
 (provide 'webjump-scrapers)
